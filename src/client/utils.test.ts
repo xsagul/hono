@@ -208,6 +208,32 @@ describe('deepMerge', () => {
       timeout: 2,
     })
   })
+
+  it('should merge null-prototype plain objects deeply', () => {
+    const target = Object.assign(Object.create(null), { nested: { a: 1 } })
+    const source = Object.assign(Object.create(null), { nested: { b: 2 } })
+    expect(deepMerge(target, source)).toStrictEqual({
+      nested: { a: 1, b: 2 },
+    })
+  })
+
+  it('should overwrite non-plain objects without spreading them', () => {
+    const defaultSignal = new AbortController().signal
+    const requestSignal = new AbortController().signal
+    const defaultHeaders = new Headers({ 'x-default': '1' })
+    const requestHeaders = new Headers({ 'x-request': '2' })
+
+    const merged = deepMerge(
+      { init: { signal: defaultSignal, headers: defaultHeaders, keepalive: true } },
+      { init: { signal: requestSignal, headers: requestHeaders } }
+    )
+
+    expect(merged.init.signal).toBe(requestSignal)
+    expect(merged.init.signal).toBeInstanceOf(AbortSignal)
+    expect(merged.init.headers).toBe(requestHeaders)
+    expect(merged.init.headers).toBeInstanceOf(Headers)
+    expect(merged.init.keepalive).toBe(true)
+  })
 })
 
 describe('parseResponse', async () => {

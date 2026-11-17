@@ -1577,6 +1577,38 @@ describe('RequestInit work as expected', () => {
     const data = await res.text()
     expect(data).toEqual('same-origin')
   })
+
+  it('Should preserve AbortSignal instances when merging default and per-request init options', async () => {
+    const defaultController = new AbortController()
+    const requestController = new AbortController()
+    const receivedSignals: Array<AbortSignal | null | undefined> = []
+
+    const signalClient = hc<AppType>('http://localhost', {
+      init: {
+        credentials: 'include',
+        signal: defaultController.signal,
+      },
+      fetch: async (input: RequestInfo | URL, init?: RequestInit) => {
+        receivedSignals.push(init?.signal)
+        const req = new Request(input, init)
+        expect(req.signal).toBeInstanceOf(AbortSignal)
+        expect(req.credentials).toBe('include')
+        return new Response('ok')
+      },
+    })
+
+    await signalClient.credentials.$get()
+    await signalClient.credentials.$get(undefined, {
+      init: {
+        signal: requestController.signal,
+      },
+    })
+
+    expect(receivedSignals).toHaveLength(2)
+    expect(receivedSignals[0]).toBe(defaultController.signal)
+    expect(receivedSignals[1]).toBe(requestController.signal)
+    expect(receivedSignals[1]).toBeInstanceOf(AbortSignal)
+  })
 })
 
 describe('WebSocket URL Protocol Translation', () => {
